@@ -1,0 +1,19 @@
+dup2()
+
+Serve a reindirizzare un preciso File Descriptor.
+
+Se ho un testo che sta per essere visualizzato a schermo (quindi sullo standard_output, FD 1),
+ma voglio che invece non venga passato allo standard_output bensì alla estremità della pipe
+dove avviene il writing, ebben userò dup2() per reindirizzare il tutto alla pipe.
+
+Avrò quind il mio array di 2 int (dei due FD) restitutito dalla pipe:
+
+int array_pipe[2];
+
+pipe(array_pipe)
+
+In tal caso il mio dup2() sarà:
+dup2(array_pipe[1], STDOUT_FILENO)
+
+
+

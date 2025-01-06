@@ -1,0 +1,91 @@
+
+open():
+
+int open(const char *pathname, int flags, mode_t mode);
+
+- flags:
+O_RDONLY: Apre il file in sola lettura.
+O_WRONLY: Apre il file in sola scrittura.
+O_RDWR: Apre il file in lettura e scrittura.
+O_CREAT: Crea il file se non esiste.
+O_EXCL: Garantisce che il file venga creato solo se non esiste già (usato con O_CREAT).
+O_TRUNC: Se il file esiste, lo tronca (lo svuota) prima di aprirlo.
+O_APPEND: Apre il file in modalità "append", cioè per scrivere alla fine del file.
+
+Si possono aggiungiere piu'flag utilizzando lóperatore or | es:
+
+open(path, O_RDONLY | O_WRONLY | O_CREATE, 0644);
+
+Tali flags corrispondono a rappresentazioni binarie che possono sommarsi tra loro
+secondo la logica dellóperazione or tra binari.
+Pertanto lórdine in cui compaiono le flags e'assoluitamente ininfluente.
+
+O_RDONLY = 0x0000 (imagine che sia rappresentato da 0000 in binario),
+O_CREAT = 0x0100 (che potrebbe essere 0100 in binario),
+
+O_RDONLY | O_CREAT
+
+Questo "OR" bit per bit darà un nuovo valore che rappresenta entrambe le operazioni. 
+
+
+-mode: sarebbero quelli che cambi con il comando chmode
+
+I primi 3 bit sono per il proprietario (user).
+I successivi 3 bit sono per il gruppo.
+Gli ultimi 3 bit sono per gli altri (others).
+
+Ogni gruppo di 3 bit rappresenta i permessi di lettura (r), scrittura (w) ed esecuzione (x). I valori per ciascun permesso sono:
+
+4 per lettura (r)
+2 per scrittura (w)
+1 per esecuzione (x)
+
+Esempio: 0644
+La notazione 0644 significa che:
+
+0: I permessi per i setuid, setgid, e sticky bit (non sono usati frequentemente, quindi è spesso 0).
+6: Il proprietario può leggere e scrivere (4 + 2 = 6).
+4: Il gruppo può solo leggere (4).
+4: Gli altri possono solo leggere (4).
+
+QUINDIII:
+
+open(path, O_WRONLY | O_CREATE | O_TRUNC, 0644);
+
+restituisce il FD di un file indicato a quel percorso. 
+Li ci sono tutte le flag indicate.
+Sono indicati anche quei permessi
+
+
+
+
+
+
+
+se collego insieme gli output sia con 
+> output reridectiorn
+che con 
+>> append
+
+se i file non esistono vengono creati tutti ma solo quello finale ha output
+Se i file gia'esistono non vengonono modificati e solo ultimo viene modificato
+
+aaa: sembra che nellínput redirection questa possa effettivamente riguardare solo il comando e queindi non puo che essere, se cé',
+solo e soltanto allínizio subito duppo il comando
+
+
+
+se un file è con append_redirection
+    se esiste non viene cancellato
+se non esiste è creato
+
+se è l'ultiom viene appendeuto
+
+
+
+
+
+
+
+
+

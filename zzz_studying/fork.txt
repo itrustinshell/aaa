@@ -1,0 +1,20 @@
+FORK:
+
+allora: 
+quando viene mandato fork, in sostanza vengono creata una copia del processo padre.
+Tale copia è il processo figlio.
+Da quel momento il sistema oprativo fa eseguire il codice a due processi diversi.
+Un processo è il processo padre e un processo è il processo figlio.
+Dal momento che entrambi hanno la proprioa stak e heap avranno entrambi laloro variabile pid ottenuta con fork.
+Questa variablie ha come valore 0 nel processo filgio e un numro positivo nel processo padre.
+Ovviamenre se hai un codice in cui c'è un if else sul pid, ebbene il processo figlio eseguira la parte lel if else
+dpve appunto la condizione è pid == 0, mentre il processo padre esegue quella dove il pid > 0
+
+
+signature:
+
+pid_t fork(void);
+
+retituisce il pid del figlio (pid del child process)
+
+

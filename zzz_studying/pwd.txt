@@ -1,0 +1,14 @@
+il comando pwd chiama in causa la funzione di sistema getcwd(), che interagisce con il sistema operativo restituendo il path assoluto della cartella corrente.
+
+la funzione accetta due parametri.
+Un parametro è proprio il buffer in cui verrà scritto il path.
+L'altro parametro è la size di questo buffer (ovvero sizeof(buffer)).
+la funzione restituisce una stringa.
+
+se non conosci in anticipo il buffer e la size puoi passare un buffer null e una size zero.
+Ci penserà poi la funzione a fare tutto. TU DEVI PREOCCUPARTI DI:
+- DICHIARARE UN char *buffer = NULL 
+- passare alla funzione questi parametri: getcwd(NULL, 0);
+- assegnare il valore di ritorno di quella funzione al tuo buffer buffer = getcwd(NULL, 0);
+
+AAA questa funzione utilizza malloc!!!!! quindi poi dovrai fare free sul tuo buffer: free(buffer)

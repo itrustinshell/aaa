@@ -1,0 +1,9 @@
+wait() è specifica per il rapporto padre e figlio. Mette il padre in attesa. Se ha figli attivi aspetta la loro terminaizone.
+
+Se hai 5 figli ma fai solo un wait(), il padre aspetterà solo uno di quei figli (in modo non deterministico, cioè non sai quale figlio sarà "raccolto" per primo). Gli altri figli rimarranno come zombie finché il padre non li "raccolgerà" successivamente.
+Zombie Process
+
+Un processo zombie è un processo figlio che è terminato, ma il processo padre non ha ancora chiamato wait() per recuperare il suo stato di uscita. Gli zombie occupano una piccola quantità di risorse (come una voce nella tabella dei processi).
+
+quindi Se sai che ci sono 5 figli devi mettere 5 wait. Ogni volta che uno a caso finisce il padre passa al wait successivo fino a che non li ha esauriti tutti.
+

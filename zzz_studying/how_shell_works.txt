@@ -1,0 +1,6 @@
+anzitutto per fare la tilda fau alr quello a destra piu ^
+
+~
+Note that the expansion of ~ is an absolute path, and only the leading ~ is expanded. This means, for example, that ~/~ will be expanded to /home/hacker/~ rather than /home/hacker/home/hacker.
+
+

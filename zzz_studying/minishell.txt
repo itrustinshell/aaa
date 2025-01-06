@@ -1,0 +1,28 @@
+Minishell
+It is a UNIX program.
+This program interprets the command that users type on terminal.
+
+Flow:
+user enter a command
+shell takes comand and sends it to the kernel
+
+Parts of a shell:
+- parser
+- executor
+- shell subsystems
+
+Parser:
+- takes command line
+- parser remove \n (it is overwritten with \0)
+- splits it into tokens
+Example:
+ls -l *.c
+is seen like this:
+	l,s,\0,-,l,\0,*,.,c,\0
+it means that it is an array of strings:
+	{"ls", "-l", "*.c"}
+
+	continua su:
+	https://www.linkedin.com/pulse/how-shell-works-internally-victor-ohachor
+
+

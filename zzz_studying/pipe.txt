@@ -1,0 +1,449 @@
+pipe e built-in
+
+COMANDO:
+ls -a | grep “ciao”
+
+ANALISI
+Questo comando utilizza una pipe. Pertanto l'output del comando a sinistra della pipe viene passato come input al comando a destra della pipe.
+In particolare i comandi in questione sono: ls e grep.
+Se abbiamo una pipe (ovvero una sorta di tubo) ebbene avremo un buffer di memoria associato a quella pipe. 
+In qusto buffer di memoria avvengono le due operaizoni di scrittura e lettura.
+
+Quando generiamo un pipe, abbiamo come valore di ritorno un array di due int. 
+Questi due int sono i file-descriptor che utilizzeremo per le funzioni write() e read(). 
+Pertanto nello scenario prospettato la lista che si genera con ls non è visualizzata sullo schermo immediatamente ma è passata a questo buffer ( write() ).
+
+Succesivamente sull'area di memoria scritta nel buffer, viene applicato poi il comando grep per il successivo filtraggio che mette in luce  le parole ciao.
+
+
+Ls ha come output una matrice di stringhe ? No.
+Ha come file un unica stringa? Sì.
+un stringa con tanti \n? Sì.
+ed un unico \0 ? Sì.
+
+Questa stringa è passata alla pipe nel fd 1 per la scrittura nel buffer della pipe? Sì.
+
+Poi è letta e scritta in un apposio buffer (che non è della pipe) da read() co fd 0 ? Sì.
+
+Questo buffer nuovo rappresenta quindi lo stesso identica stringa? Sì.
+
+Su questa stringa si applica il comando grep? Sì.
+
+Grep è un comando builtin ? No.
+
+Quindi qui apbbiamo un pipe che gestirà due comandi esterni ovvero due programmi? Sì.
+
+Questi due programmi in quanto esterni a bash saranno eseguiti con execve? Sì.
+
+Ora io so che se facio execve il processo che avvia execve va a sostituire completamente a fesss ra sor del processo precedente. Giusto ? Sì.
+
+Quindi quando avvio un comando esterno dovrei prima effettuare un fork prima? Sì.
+
+Effettuando un firk io mantengo una copia del processo padre ? Sì.
+
+E in pratica il comando che dovevo eseguire con execve sarà seguito nell’ambito del processo figlio? Sì
+
+
+
+Sequenza di Operazioni
+
+Ecco una sequenza generale di operazioni per configurare una pipe tra due processi:
+
+    Creare la Pipe: Usa pipe(int pipefd[2]) per creare una pipe. pipefd[0] sarà utilizzato per leggere, e pipefd[1] sarà utilizzato per scrivere.
+AAA: attenzione quqnaod crei pipe() l'array ha entrambi i suoi FD aperti...quindi poi inizia il gioco del close e open dei fd della pipe generata a seconda di quello che stai usando correntemente....
+
+	    Fork del Processo: Usa fork() per creare un processo figlio. La logica della comunicazione tra i processi è tipicamente implementata nei processi genitore e figlio.
+
+		    Dup2: Utilizza dup2() per reindirizzare l'input/output standard verso la pipe. Questo è cruciale per far sì che l'output di un processo venga inviato come input all'altro.
+
+			    Execve: Chiamare execve() nel processo figlio per eseguire il programma desiderato.
+
+				    Chiusura dei Descrittori di File: Chiudi i descrittori di file della pipe non utilizzati per evitare perdite di memoria e garantire che i processi si chiudano correttamente.
+			
+
+AAA: Ogni processo ha la sua pipe copiata. Se vhiudi il fd ad una non si chiude automaticamente nlel'altra. Devi
+farlo tu esplicitamente.
+
+io vorrei capire una cosa.
+se io uso pipe()
+ottengo una zona di buffer ocn due fd che puntano alla stessa zona di buffer. Dimmi si o no solo di o no 
+ChatGPT said:
+ChatGPT
+
+Sì.
+
+
+You said:
+ok ho notato che se devo usare la scrittura viene effettuato il close dell'apertura....
+ChatGPT said:
+ChatGPT
+
+Sì, è corretto. Se devi usare la scrittura nella pipe, dovresti chiudere il file descriptor associato alla lettura (ovvero fd[0]) nel processo che deve scrivere. Allo stesso modo, se devi usare la lettura, chiudi il file descriptor associato alla scrittura (fd[1]) nel processo che legge.
+
+Questo serve a evitare usi impropri della pipe, dove potresti accidentalmente leggere o scrivere da parti non necessarie. Inoltre, chiudere i file descriptor non necessari previene blocchi o perdite di risorse.
+
+Vuoi una conferma su questo concetto?
+You said:
+non capisco cosa significa applicare il close. Quale è lo stato opposto al close che vado appunto a modificare con close ? 
+ChatGPT said:
+ChatGPT
+
+Quando applichi close() a un file descriptor (come quelli della pipe), stai dicendo al sistema operativo che non vuoi più usare quel file descriptor. Il file descriptor viene invalidato e le risorse associate vengono rilasciate. Il suo stato, prima di chiamare close(), è quello di un file descriptor "aperto" (attivo e utilizzabile).
+Gli stati sono quindi:
+
+    Aperto: Il file descriptor è attivo, e puoi usarlo per leggere o scrivere.
+    Chiuso: Dopo aver chiamato close(), il file descriptor non può più essere usato. Se provi a leggere o scrivere su di esso, otterrai un errore.
+
+Perché usi close():
+
+    Rilasciare risorse: Ogni file descriptor consuma risorse di sistema. Se non lo chiudi quando hai finito di usarlo, stai trattenendo inutilmente risorse che potrebbero esaurirsi.
+    Evitare operazioni indesiderate: Se lasci un file descriptor aperto, potresti accidentalmente leggerci o scriverci, causando comportamenti inattesi.
+
+Esempio:
+
+    Prima di close(): Puoi scrivere o leggere dal file descriptor, a seconda della pipe e dell'uso.
+    Dopo close(): Il file descriptor non è più utilizzabile, e il sistema operativo lo considera chiuso.
+
+In breve, close() cambia lo stato del file descriptor da "aperto" a "chiuso", liberando risorse e prevenendo ulteriori operazioni su di esso.
+You said:
+dopo aver scritto nel buffer dovrei fare close del fd associato al write ? 
+ChatGPT said:
+ChatGPT
+
+Sì, dopo aver scritto nel buffer tramite il file descriptor associato alla scrittura (cioè fd[1]), dovresti chiuderlo con close(fd[1]).
+Perché chiudere il file descriptor dopo aver scritto?
+
+    Segnalare che hai finito di scrivere: Quando chiudi il file descriptor di scrittura, stai dicendo al processo che legge (ad esempio, il processo figlio) che non verranno più inviati dati. Se non chiudi il file descriptor di scrittura, il lettore potrebbe rimanere bloccato in attesa di ulteriori dati, pensando che ci sia ancora qualcosa da leggere.
+
+    Rilasciare risorse: Ogni file descriptor aperto consuma risorse di sistema, quindi è buona pratica chiuderlo non appena non è più necessario.
+
+Esempio di utilizzo corretto:
+
+c
+
+int fd[2];
+pipe(fd);
+
+pid_t pid = fork();
+
+if (pid == 0) {  // Processo figlio (leggiamo dalla pipe)
+    close(fd[1]);  // Chiudiamo il lato di scrittura nel processo figlio
+    char buffer[100];
+    read(fd[0], buffer, sizeof(buffer));
+    printf("Il figlio ha letto: %s\n", buffer);
+    close(fd[0]);  // Chiudiamo il lato di lettura dopo aver finito
+} else {  // Processo padre (scriviamo nella pipe)
+    close(fd[0]);  // Chiudiamo il lato di lettura nel processo padre
+    char message[] = "Ciao dal processo padre!";
+    write(fd[1], message, strlen(message) + 1);  // Scriviamo nella pipe
+    close(fd[1]);  // Chiudiamo il lato di scrittura dopo aver finito
+    wait(NULL);  // Aspettiamo la terminazione del processo figlio
+}
+
+Passi:
+
+    Il processo padre:
+        Chiude fd[0] perché non deve leggere.
+        Scrive il messaggio usando fd[1].
+        Chiude fd[1] dopo aver scritto, segnalando che non invierà più dati.
+
+    Il processo figlio:
+        Chiude fd[1] perché non deve scrivere.
+        Legge dalla pipe usando fd[0].
+        Chiude fd[0] dopo aver letto.
+
+Quindi, sì, dopo aver finito di scrivere nel buffer, dovresti chiudere il file descriptor associato alla scrittura.
+You said:
+ok ma a qusto punto mi sorge una domanda. Se la scrittura non è avvenuta tutta, sono nel processo figlio, il padre attende con wait che il processo figlio termini di scrivere, ma il buffer è troppo piccolo, cosa cazzo avviene ? il padre non può leggere perchè deve attendere che il processo figlio termini la scrittura...e il fd non si può chiudere perchè la scrittura è in corso 
+ChatGPT said:
+ChatGPT
+
+Ottima domanda! Vediamo cosa succede quando il buffer della pipe è troppo piccolo per contenere tutti i dati che vuoi scrivere e come questo influisce sulla comunicazione tra il processo padre e figlio.
+Comportamento della Pipe con Buffer Pieno
+
+Le pipe hanno un buffer interno di dimensione limitata (solitamente qualche KB, dipende dal sistema operativo). Se il processo figlio tenta di scrivere più dati di quanti il buffer possa contenere in un colpo solo, accade quanto segue:
+
+    Il processo figlio viene bloccato (sospeso) fino a quando c'è spazio libero nel buffer della pipe.
+        Se il buffer è pieno e il figlio tenta di scrivere ulteriori dati, verrà bloccato fino a quando il processo padre non legge dalla pipe, liberando spazio nel buffer.
+        Questo è il comportamento naturale delle pipe in I/O bloccante (che è il comportamento predefinito).
+
+    Il processo padre può leggere i dati parzialmente: Il processo padre non ha bisogno di aspettare che il processo figlio termini completamente. Appena ci sono dati disponibili nella pipe, il padre può iniziare a leggere.
+        Questo significa che non devi aspettare la fine della scrittura per far sì che il processo padre legga: padre e figlio possono operare contemporaneamente. Appena il processo padre legge qualcosa, libera spazio nella pipe, permettendo al processo figlio di continuare a scrivere.
+
+Esempio:
+
+Se il processo figlio sta scrivendo molti dati nella pipe e il buffer si riempie, il figlio aspetta che il padre legga per liberare spazio, e quindi continua a scrivere il resto dei dati. In questo scenario, non devi chiudere il file descriptor di scrittura del figlio fino a quando tutta la scrittura non è stata completata.
+Cosa Succede con wait():
+
+    wait() non blocca la comunicazione tramite pipe. Blocca solo il processo padre dopo che il figlio è terminato.
+    Quindi, mentre il processo figlio sta scrivendo e il padre sta leggendo, il padre non è bloccato da wait(). Solo quando il processo figlio termina completamente (esce o chiama _exit()), il padre si blocca per aspettare la terminazione del figlio con wait().
+
+Scenario di Buffer Pieno:
+
+Immagina di scrivere 10 KB di dati, ma il buffer della pipe può contenere solo 4 KB:
+
+    Il figlio inizia a scrivere i primi 4 KB e riempie il buffer della pipe.
+    Il figlio viene sospeso in attesa che ci sia spazio libero nella pipe.
+    Il padre nel frattempo legge i primi 4 KB dal buffer, liberando spazio.
+    Il figlio riprende e continua a scrivere i restanti 6 KB.
+    Il padre legge i successivi 6 KB dalla pipe.
+    Solo quando il figlio ha finito di scrivere tutto e chiude il file descriptor di scrittura, il padre può chiudere anche il file descriptor di lettura.
+
+Soluzione: Sincronizzazione tra Padre e Figlio
+
+    Il padre non deve aspettare che il figlio termini di scrivere tutto prima di iniziare a leggere.
+    Il processo figlio non chiuderà il file descriptor di scrittura finché non avrà scritto tutto.
+    Puoi evitare il blocco usando la lettura e scrittura in modo interattivo: il padre legge non appena ci sono dati, e il figlio scrive quando c’è spazio.
+
+Esempio di Sincronizzazione:
+
+c
+
+int fd[2];
+pipe(fd);
+
+pid_t pid = fork();
+
+if (pid == 0) {  // Processo figlio (scrive nella pipe)
+    close(fd[0]);  // Chiudiamo il lato di lettura nel processo figlio
+    char largeMessage[] = "Un messaggio molto lungo...";
+    
+    write(fd[1], largeMessage, strlen(largeMessage));  // Scrive nella pipe (blocca se il buffer è pieno)
+    
+    close(fd[1]);  // Chiudiamo il lato di scrittura dopo aver finito di scrivere
+    _exit(0);  // Termina il processo figlio
+} else {  // Processo padre (legge dalla pipe)
+    close(fd[1]);  // Chiudiamo il lato di scrittura nel processo padre
+    char buffer[100];
+    
+    while (read(fd[0], buffer, sizeof(buffer)) > 0) {
+        printf("Il padre ha letto: %s\n", buffer);
+    }
+    
+    close(fd[0]);  // Chiudiamo il lato di lettura dopo aver finito
+    wait(NULL);  // Aspettiamo la terminazione del processo figlio
+}
+
+Cosa Succede Qui:
+
+    Il figlio scrive un messaggio lungo, e se il buffer si riempie, il figlio verrà sospeso.
+    Il padre legge i dati in blocchi (nel ciclo while) e continua a leggere finché ci sono dati disponibili. Quando non ci sono più dati, il ciclo si interrompe.
+    Solo dopo che il figlio ha finito di scrivere e chiude il file descriptor, il padre chiude anche il suo file descriptor di lettura e usa wait() per aspettare la terminazione del figlio.
+
+Riassunto:
+
+    Il processo figlio può essere bloccato se il buffer della pipe è pieno.
+    Il processo padre può iniziare a leggere subito, non deve aspettare che il figlio abbia terminato completamente la scrittura.
+    wait() aspetta solo la terminazione del figlio, non blocca la lettura dalla pipe.
+    Chiudi il file descriptor di scrittura solo quando hai finito di scrivere tutti i dati.
+
+Se vuoi ulteriori chiarimenti o un esempio specifico, fammi sapere!
+You said:
+quando il buffer è pieno ma devono essere scirti altri dai....e il figlio viene sospeso....in quel momento il fd di scrittura viene chiuso ? 
+ChatGPT said:
+ChatGPT
+
+No, il file descriptor di scrittura non viene chiuso automaticamente quando il processo figlio viene sospeso a causa del buffer della pipe pieno.
+
+Il processo figlio viene semplicemente messo in attesa (bloccato) finché il buffer non ha spazio sufficiente per accettare ulteriori dati. In questo stato, il file descriptor di scrittura rimane aperto e pronto per scrivere non appena il processo padre legge dalla pipe, liberando spazio nel buffer.
+Dettagli:
+
+    Il figlio continua a scrivere: Se il buffer è pieno, il sistema operativo sospende temporaneamente il processo figlio, ma il file descriptor di scrittura rimane aperto.
+
+    Quando il padre legge: Il processo padre, leggendo dalla pipe, libera spazio nel buffer. Appena c'è abbastanza spazio, il figlio riprende automaticamente e continua a scrivere.
+
+    Chiusura manuale: Sarai tu a chiudere manualmente il file descriptor di scrittura con close(fd[1]) una volta che il figlio ha finito di scrivere tutti i dati.
+
+In sintesi:
+
+    Il fd di scrittura rimane aperto finché non lo chiudi esplicitamente.
+    Il processo figlio viene sospeso solo per aspettare che ci sia spazio nel buffer della pipe, ma il file descriptor di scrittura è ancora attivo e pronto a riprendere la scrittura appena possibile.
+
+Hai bisogno di ulteriori chiarimenti?
+You said:
+con wait in che senso non si interrompe la comunicazione con pipe ? quando si attiva il wait ? 
+ChatGPT said:
+ChatGPT
+
+Ottima domanda! Vediamo come wait() e le pipe interagiscono.
+Cosa fa wait()?
+
+wait() è usato dal processo padre per aspettare che il processo figlio termini. Quando il padre chiama wait(), si blocca finché il figlio non termina la sua esecuzione (ovvero, finché il figlio non chiama exit() o _exit()).
+Quando si attiva wait()?
+
+    wait() si attiva dopo che il processo figlio ha terminato. Non ha alcun impatto immediato sulla comunicazione tramite la pipe.
+    Il padre può chiamare wait() solo dopo che ha finito di comunicare con il figlio attraverso la pipe. La chiamata a wait() non interferisce con la pipe stessa, perché la pipe è un canale separato di comunicazione.
+
+Comunicazione tramite pipe e wait()
+
+Il padre e il figlio possono comunicare tramite la pipe prima che il padre chiami wait(). Questo significa che:
+
+    Il processo figlio: Continua a scrivere nella pipe finché non ha finito di inviare i dati e chiude il file descriptor di scrittura. Dopo, il figlio termina (chiama exit() o _exit()).
+
+    Il processo padre: Può leggere i dati dalla pipe anche prima di chiamare wait(). Il padre leggerà dalla pipe finché ci sono dati. Solo dopo che tutti i dati sono stati letti e che la pipe è chiusa (dal lato del figlio), il padre chiamerà wait() per aspettare che il figlio termini completamente.
+
+    wait() viene chiamato dopo che il padre ha finito di leggere dalla pipe. Non appena il figlio chiude il suo lato della pipe e termina, il padre può usare wait() per sincronizzarsi e terminare anche lui.
+
+Esempio di flusso:
+
+    Padre e figlio usano la pipe:
+        Il figlio scrive dati nella pipe.
+        Il padre legge dati dalla pipe.
+
+    Il figlio termina:
+        Dopo aver finito di scrivere, il figlio chiude il suo file descriptor di scrittura e termina con exit().
+
+    Il padre legge i dati:
+        Il padre legge i dati dalla pipe e, quando non ci sono più dati (perché il figlio ha chiuso il file descriptor di scrittura), il padre chiude il file descriptor di lettura.
+
+    Il padre chiama wait():
+        Dopo aver chiuso il file descriptor di lettura della pipe, il padre chiama wait() per aspettare che il figlio termini.
+        Se il figlio è già terminato, wait() restituisce immediatamente.
+
+Importante:
+
+    La comunicazione tramite pipe non viene interrotta da wait(). Il padre può leggere dalla pipe finché il figlio scrive. wait() si attiva solo dopo che il padre ha finito di leggere e deve attendere la terminazione del figlio.
+
+    wait() non si attiva automaticamente quando il figlio è sospeso (ad esempio, mentre il figlio aspetta che ci sia spazio nel buffer della pipe). Il padre può chiamare wait() solo quando ha finito di leggere i dati.
+
+Codice d'esempio per chiarire:
+
+c
+
+int fd[2];
+pipe(fd);
+
+pid_t pid = fork();
+
+if (pid == 0) {  // Processo figlio
+    close(fd[0]);  // Chiude il lato di lettura
+    write(fd[1], "Ciao dal figlio", 16);  // Scrive nella pipe
+    close(fd[1]);  // Chiude il lato di scrittura dopo aver finito
+    _exit(0);  // Termina il processo figlio
+} else {  // Processo padre
+    close(fd[1]);  // Chiude il lato di scrittura
+    char buffer[100];
+    read(fd[0], buffer, sizeof(buffer));  // Legge dalla pipe
+    printf("Il padre ha letto: %s\n", buffer);
+    close(fd[0]);  // Chiude il lato di lettura
+    wait(NULL);  // Aspetta che il figlio termini
+}
+
+Flusso dell'esempio:
+
+    Il figlio scrive "Ciao dal figlio" nella pipe e poi chiude il file descriptor di scrittura, terminando.
+    Il padre legge i dati dalla pipe e, una volta finito, chiude il file descriptor di lettura.
+    Solo dopo la chiusura del file descriptor di lettura, il padre chiama wait() per aspettare che il figlio termini.
+
+In sintesi:
+
+    wait() non blocca la comunicazione tramite pipe. Serve solo a bloccare il processo padre finché il figlio non termina.
+    Il padre può leggere dalla pipe mentre il figlio scrive, e chiamare wait() solo dopo che il figlio ha finito di scrivere e ha chiuso la pipe.
+
+Se hai altre domande o vuoi ulteriori chiarimenti, fammi sapere!
+You said:
+quindi devo mettere un exit nel processo figlio ? 
+ChatGPT said:
+ChatGPT
+
+Sì, è molto importante mettere una chiamata a exit() (o meglio ancora _exit()) nel processo figlio dopo che ha completato il suo lavoro. Questo garantisce che il processo figlio termini correttamente e rilasci le risorse che stava utilizzando. Senza la chiamata a exit(), il processo figlio continuerebbe ad eseguire tutto il codice successivo, anche quello che potrebbe essere destinato solo al processo padre, creando comportamenti indesiderati.
+Perché usare exit() o _exit() nel processo figlio?
+
+    Terminare il figlio correttamente: La chiamata a exit() o _exit() fa terminare il processo figlio in modo pulito.
+    Evitare esecuzione non voluta: Senza exit(), il figlio potrebbe continuare a eseguire il codice che segue il fork(), incluso il codice del padre, portando a comportamenti inattesi.
+    Rilascio delle risorse: La terminazione del processo figlio libera le risorse associate al figlio. Il padre può quindi chiamare wait() per raccogliere lo stato di uscita del figlio ed evitare che diventi un "processo zombie".
+
+Differenza tra exit() e _exit():
+
+    exit(): Effettua alcune operazioni di pulizia prima di terminare il processo, come svuotare i buffer standard e chiamare i gestori di uscita registrati.
+    _exit(): Termina immediatamente il processo figlio senza eseguire operazioni di pulizia. È spesso preferito in un contesto di fork perché è più veloce e sicuro.
+
+Quando usare _exit():
+
+Nel contesto di un processo creato con fork(), è preferibile usare _exit(), soprattutto se hai intenzione di eseguire un exec() subito dopo. In questo modo, eviti che il figlio faccia operazioni di pulizia indesiderate, come svuotare i buffer che potrebbero essere condivisi con il padre.
+Esempio di codice con _exit():
+
+c
+
+int fd[2];
+pipe(fd);
+
+pid_t pid = fork();
+
+if (pid == 0) {  // Processo figlio
+    close(fd[0]);  // Chiude il lato di lettura
+    write(fd[1], "Ciao dal figlio", 16);  // Scrive nella pipe
+    close(fd[1]);  // Chiude il lato di scrittura dopo aver finito
+    _exit(0);  // Termina immediatamente il processo figlio
+} else {  // Processo padre
+    close(fd[1]);  // Chiude il lato di scrittura
+    char buffer[100];
+    read(fd[0], buffer, sizeof(buffer));  // Legge dalla pipe
+    printf("Il padre ha letto: %s\n", buffer);
+    close(fd[0]);  // Chiude il lato di lettura
+    wait(NULL);  // Aspetta che il figlio termini
+}
+
+Senza _exit() nel processo figlio:
+
+Se non chiami _exit() o exit() nel processo figlio, succede quanto segue:
+
+    Il figlio continuerebbe a eseguire tutto il codice dopo il fork, compreso quello del processo padre, il che porterebbe a errori e comportamenti imprevisti.
+    Non terminerà correttamente, lasciando risorse allocate inutilmente e potenzialmente generando "zombie processes".
+
+Conclusione:
+
+Devi sempre mettere _exit() (o exit()) nel processo figlio per terminare il processo correttamente e garantire che il padre possa gestire la sua uscita con wait().
+				    
+				    
+aspetta mi stai dicendo che il processo padre ed il processo figlio hanno dei file descriptor relativi alla stessa pipe di comunicaizone ...ma i numerini sono diversi ? 
+ChatGPT said:
+ChatGPT
+
+No, i file descriptor relativi alla stessa pipe sono gli stessi per tutti i processi coinvolti, cioè il padre e i figli hanno file descriptor che si riferiscono alla stessa pipe. Ecco come funziona nel dettaglio:
+Comprensione dei File Descriptor nella Pipe
+
+    Creazione della Pipe:
+        Quando chiami pipe(fd), il sistema operativo crea una pipe e restituisce due file descriptor. Ad esempio, se fd è un array di due interi, fd[0] sarà l'estremità di lettura e fd[1] sarà l'estremità di scrittura.
+        I file descriptor sono numeri interi che il sistema operativo usa per identificare le risorse aperte.
+
+    Forking e Eredità dei File Descriptor:
+        Quando esegui fork(), il processo figlio eredita i file descriptor dal processo padre. Questo significa che entrambi i processi (padre e figlio) hanno accesso agli stessi file descriptor di lettura e scrittura della pipe (fd[0] e fd[1]).
+        Tuttavia, i numeri dei file descriptor saranno gli stessi per entrambi i processi e non vengono duplicati. Per esempio, se nel processo padre fd[0] è 3 e fd[1] è 4, il processo figlio avrà anch'esso fd[0] come 3 e fd[1] come 4.
+
+Esempio di Comportamento
+
+Supponiamo che tu crei una pipe e poi esegui fork():
+
+c
+
+int fd[2];
+pipe(fd);  // fd[0] = 3 (lettura), fd[1] = 4 (scrittura)
+
+pid_t pid = fork(); // Ora ci sono due processi: padre e figlio
+
+if (pid == 0) {
+    // Processo figlio
+    // fd[0] = 3, fd[1] = 4 anche nel figlio
+    close(fd[1]);  // Il figlio chiude l'estremità di scrittura
+    // Ora può leggere da fd[0]
+} else {
+    // Processo padre
+    // fd[0] = 3, fd[1] = 4 anche nel padre
+    close(fd[0]);  // Il padre chiude l'estremità di lettura
+    // Ora può scrivere su fd[1]
+}
+
+Considerazioni Importanti
+
+    Stesso File Descriptor: Entrambi i processi (padre e figlio) usano gli stessi numeri di file descriptor per la pipe, cioè fd[0] e fd[1] manterranno gli stessi valori nei due processi.
+    Indipendenza: Sebbene i numeri di file descriptor siano gli stessi, ogni processo ha la propria copia della struttura di dati del file descriptor, il che significa che possono essere gestiti indipendentemente. Ad esempio, se il processo figlio chiude fd[1], ciò non influisce sul file descriptor di scrittura nel processo padre.
+    Chiusura e Comunicazione: Chiudere un file descriptor in un processo non chiude automaticamente il file descriptor nell'altro processo. Questo è importante per gestire correttamente la comunicazione tramite pipe.
+
+Riepilogo
+
+In sintesi, sia il processo padre che il processo figlio utilizzano gli stessi numeri di file descriptor per la pipe, ma ogni processo gestisce indipendentemente il proprio stato di chiusura dei file descriptor. 
+
+
+
+Quindi quando operiamo dup2 stiamo reindirizzando da quel momento uno stream con i file descriptor. Possiamo anche chiudere subito il FD. Questo significa che il collegamento è sempre comunque attivo ma non possiamo scrivere direttamente su quel fd (appunto perchè ora lo abbiamo chiuso altrimento avremmo potuto farlo), tuttavia scriveremo ad esempio sullo standardin e dal momento che abbiamo fatto dup2 questo verrà indirizzato sulla pipe tramite quel fd (che tra l'altro avevamo chiuso...a rimarcare che chiudere non significa chiudere il collegamento ma significa chiudere la possibilità di scrivere direttamente su...in tal caso direttamente sul fd della pipe...invece ripeto questo viene raggiunto cmq ma attraverso lo stdin). Questa chiusura certamente può essere evitata ma è una best practce per l'ottimizzazione delle risorse.
