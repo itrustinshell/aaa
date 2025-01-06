@@ -30,8 +30,6 @@ int main(int argc, char **argv, char **envp)
 		prompt(&inputstr);
 		token_matrix = tokenizer(inputstr); //TOKENIZER
 		cmdlist = parsing(token_matrix); //PARSING
-		if (cmdlist->redirlist)
-			printf("essite una listaaaaaaaaaaaaaaaaaaaaa\n");
 		executor(cmdlist, &env); //EXECUTOR
 		free(inputstr);
 		inputstr = NULL;

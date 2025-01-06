@@ -1,40 +1,42 @@
 #include "../minishell.h"
 
-void	printallheredoclists(t_cmd *cmd, int n_heredoc)
+void	printallheredoclists(t_cmd *cmd)
 {
-	int k = 0;
-	int z;
-	z = 1;
-
-	t_cmd *tmp_cmdlist;
-	t_heredoc *tmp_heredoc;
+	t_cmd		*tmp_cmdlist;
+	t_redir		*tmp_redir;
+	t_heredoc	*tmp_heredoc;
 
 	tmp_cmdlist = cmd;
 	//printf("sto per stampare la lista di heredoc: %s\n", tmp_cmdlist->cmd);
-	while (tmp_cmdlist)
+	if (tmp_cmdlist)
 	{
-		while (tmp_cmdlist->redirlist && tmp_cmdlist->redirlist->type != HEREDOC)
-			tmp_cmdlist->redirlist = tmp_cmdlist->redirlist->next;
-		if(tmp_cmdlist->redirlist && tmp_cmdlist->redirlist->heredoclist)
+		while (tmp_cmdlist)
 		{
-			printf("questa è la lista con delimiter: %s\n", tmp_cmdlist->redirlist->delimiter);
-			tmp_heredoc = tmp_cmdlist->redirlist->heredoclist;
-			while (tmp_heredoc)
+			if (tmp_cmdlist->redirlist)
+				tmp_redir = tmp_cmdlist->redirlist;
+			while (tmp_redir && tmp_redir->type != HEREDOC)
+				tmp_redir = tmp_redir->next;
+			if(tmp_redir && tmp_redir->heredoclist)
 			{
-				printf("- %s", tmp_heredoc->input);
-				tmp_heredoc = tmp_heredoc->next;
+				//printf("questa è la lista con delimiter: %s\n", tmp_redir->delimiter);
+				tmp_heredoc = tmp_redir->heredoclist;
+				while (tmp_heredoc)
+				{
+					printf("- %s", tmp_heredoc->input);
+					tmp_heredoc = tmp_heredoc->next;
+				}
+				tmp_redir = tmp_redir->next;
 			}
-			tmp_cmdlist->redirlist = tmp_cmdlist->redirlist->next;
+			tmp_cmdlist = tmp_cmdlist->next;
 		}
-		tmp_cmdlist = tmp_cmdlist->next;
 	}
 }
 
 int	count_heredoc(t_cmd *cmd)
 {
 	t_cmd	*tmp_cmd;
-	int 	n_heredoc;
-	t_redir *tmp_redir;
+	int		n_heredoc;
+	t_redir	*tmp_redir;
 
 	if (!cmd)
 		return (0);

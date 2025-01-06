@@ -79,7 +79,6 @@ t_redir	*i_redirlast(t_redir *redirlist)
 {
 	t_redir	*tmp_redirlist;
 	t_redir	*ret;
-	printf("sono in i_redirirLAST per trovare input last\n");
 	if (!redirlist)
 		return (NULL);
 	ret = NULL;

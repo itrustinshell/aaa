@@ -1,6 +1,5 @@
 #include "../minishell.h"
 
-//fill token
 /*
 TODO: 'rrr'rrrr deve essere riconosciuto come un unico token...
  */
@@ -53,6 +52,7 @@ char *create_token_wordled(char *inputstr, int *iterator)
 		int len;
 		char *token;
 
+		token = NULL;
 		i = *iterator;
 		len = 0;
 		while (
@@ -61,7 +61,7 @@ char *create_token_wordled(char *inputstr, int *iterator)
 			!ft_issymbol(inputstr[i + len])
 		)
 			len++;
-		if (len)
+		if (len > 0)
 		{
 			token = tokenalloc(inputstr, i, len);
 			if (token == NULL)
@@ -80,6 +80,7 @@ char *create_token_symbolled(char *inputstr, int *iterator)
 	int starting_index;
 	int is_symbol;
 
+	token = NULL;
 	i = *iterator;
 	starting_index = i;
 	is_symbol = check_symbols(inputstr, &i);

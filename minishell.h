@@ -120,10 +120,10 @@ char	**create_tokenmatrix(char* str_to_tokenize, int n_tokens);
 
 //PARSING
 t_cmd 	*parsing(char **tokenmatrix);
-void		listappend_command(t_cmd *node, t_cmd **list);
+void	listappend_command(t_cmd *node, t_cmd **list);
 t_cmd	*last_cmdnode(t_cmd *commandlist);
-int			listlen(t_cmd *list);
-void 		listappend_redir(t_redir *node, t_redir **list);
+int		listlen(t_cmd *list);
+void 	listappend_redir(t_redir *node, t_redir **list);
 
 
 //EXECUTOR
@@ -144,13 +144,13 @@ int			check_builtin_in_cmdlist(t_cmd *tmp_cmdlist, t_env *genvlist);
 t_cmd 		*create_commandnode_for_pipe(char **tokenmatrix, int current_pipe_index, int current_generictoken_index);
 void 		commandnode_management_for_pipe(char **tokenmatrix, int *pipe_index, int *generictoken_index, t_cmd **commandlist);
 t_redir		*redirlist_for_pipe(char **tokenmatrix, int token_index);
-int			ioa_redirops(t_redir *redirlist, int saved_stdout, int *n_heredoc);
+int			ioa_redirops(t_redir *redirlist, int saved_stdout);
 void 		oa_redirops(t_redir *redirlist);
 int			oa_rediropen(t_redir *redirlist);
 void		oa_redirwrite(t_redir *redirnode);
 t_redir		*oa_redirlast(t_redir *redirlist);
 t_redir		*i_redirlast(t_redir *redirlist);
-void		printallheredoclists(t_cmd *cmd, int n_heredoc);
+void		printallheredoclists(t_cmd *cmd);
 int			count_heredoc(t_cmd *cmd);
 
 //free
@@ -182,10 +182,10 @@ void	init_envnode(t_env *env);
 t_env	*access_envar(char *envar, t_env *envlist);
 
 //CMD utils
-char		*find_external_cmd(char *cmd);	
+char	*find_external_cmd(char *cmd);	
 t_cmd	*create_cmd(char **matrix);
-char		*get_cmdpath(char *cmd);
-void		cmdinit(t_cmd *cmd);
+char	*get_cmdpath(char *cmd);
+void	cmdinit(t_cmd *cmd);
 void 	redirinit(t_redir *node);
 void	printlist(t_cmd *cmdlist);
 

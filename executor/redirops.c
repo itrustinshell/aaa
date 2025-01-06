@@ -25,24 +25,20 @@ even if there are no redirection.
 Indeed, if there is no input redirection, no file is 
 opened and the stdin just is not redirect to any fd.
 */
-int	i_redirops(t_redir *redirlist, int saved_stdout, int *n_heredoc)
+int	i_redirops(t_redir *redirlist, int saved_stdout)
 {
 	int		fd;
 	t_redir	*latest_input_redir;
 	int		ret;
-	printf("sono in i_redirops\n");
+
 	ret = 1;
 	if (!redirlist)
-	{
-		printf("AAAAAAAA NON ESISTEEEE\n");
 		return (ret);
-	}
 	latest_input_redir = i_redirlast(redirlist);
 	if (!latest_input_redir)
 		return (2);
 	if (latest_input_redir->type == INPUT_REDIRECTION)
 	{
-		printf("l'ultimo input è un input-redirections\n");
 		ret = 3;
 		if (access(latest_input_redir->file, F_OK) == 0)
 		{
@@ -79,29 +75,19 @@ int	i_redirops(t_redir *redirlist, int saved_stdout, int *n_heredoc)
 }
 
 /*the whole input-output-append operations
-
+	i_ret = 0 -> The symbol of iredi was found...but the file doesnt exist.
+	i_ret = 2 -> NO iredr o heredoc found!!!
+	i_ret = 3 -> last inputredir is an iredir
+	i_ret = 4 -> last inputredir is an HEREDOC
+	 
 */
-int	ioa_redirops(t_redir *redirlist, int saved_stdout, int *n_heredoc)
+int	ioa_redirops(t_redir *redirlist, int saved_stdout)
 {
 	int	i_ret;
 
-	if (!redirlist)
-		printf("BBBBBBBBBBBBBBBBBB non esisteeee\n");
-	i_ret = i_redirops(redirlist, saved_stdout, n_heredoc);
+	i_ret = i_redirops(redirlist, saved_stdout);
 	if (i_ret == 0)
-	{
-		// printf("The symbol of iredi was found...but the file doesnt exist.\n");
 		return (0);
-	}
-	// else
-	// {
-	// 	if (i_ret == 2)
-	// 		printf("NO iredr o heredoc found!!!\n");
-	// 	if (i_ret == 3)
-	// 		printf("last inputredir is an iredir\n");
-	// 	if (i_ret == 4)
-	// 		printf("last inputredir is an HEREDOC\n");
-	// }
 	oa_redirops(redirlist);
 	return (i_ret);
 }
